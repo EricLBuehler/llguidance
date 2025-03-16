@@ -3,7 +3,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     sync::Arc,
 };
-use tokenizers::{normalizers::Sequence, FromPretrainedParameters, NormalizerWrapper, Tokenizer};
+use tokenizers::{normalizers::Sequence, NormalizerWrapper, Tokenizer};
 use toktrie::{TokEnv, TokRxInfo, TokTrie, TokenId, TokenizerEnv};
 
 pub struct ByteTokenizer {
@@ -35,32 +35,7 @@ fn build_char_map() -> HashMap<char, u8> {
     res
 }
 
-fn strip_suffix(sep: &str, s: &mut String) -> Option<String> {
-    let mut parts = s.splitn(2, sep);
-    let core = parts.next().unwrap().to_string();
-    let suff = parts.next().map(|s| s.to_string());
-    *s = core;
-    suff
-}
-
 impl ByteTokenizer {
-    pub fn from_name(name: &str) -> Result<ByteTokenizer> {
-        let loaded = if name.starts_with(".") || name.starts_with("/") {
-            Tokenizer::from_file(name)
-        } else {
-            let mut name2 = name.to_string();
-            let mut args = FromPretrainedParameters::default();
-            if let Some(s) = strip_suffix("@", &mut name2) {
-                args.revision = s
-            }
-            Tokenizer::from_pretrained(name2, Some(args))
-        };
-
-        let tok = loaded.map_err(|e| anyhow!("error loading tokenizer: {}", e))?;
-
-        ByteTokenizer::from_tokenizer(tok)
-    }
-
     pub fn from_file(name: &str) -> Result<ByteTokenizer> {
         let tok =
             Tokenizer::from_file(name).map_err(|e| anyhow!("error loading tokenizer: {}", e))?;
@@ -221,11 +196,6 @@ pub struct ByteTokenizerEnv {
 }
 
 impl ByteTokenizerEnv {
-    pub fn from_name(name: &str, n_vocab: Option<usize>) -> Result<ByteTokenizerEnv> {
-        let tokenizer = ByteTokenizer::from_name(name)?;
-        ByteTokenizerEnv::new(tokenizer, n_vocab)
-    }
-
     pub fn new(tokenizer: ByteTokenizer, n_vocab: Option<usize>) -> Result<ByteTokenizerEnv> {
         let mut info = tokenizer.tokrx_info();
         let mut token_bytes = tokenizer.token_bytes();
